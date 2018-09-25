@@ -2,8 +2,9 @@
 #Needs ansi-color installed: https://code.google.com/p/ansi-color/
 
 
-SPOOLDIR=$HOME/localroot/var/spool/smartstart
-LOGDIR="$HOME/localroot/var/log"
+SMSTDIR=$HOME/.smartstart
+SPOOLDIR=$SMSTDIR/spool
+LOGDIR="$SMSTDIR/log"
 
 WARNTHRESHHOLD=3
 ERRTHRESHHOLD=7
@@ -137,6 +138,8 @@ test "$1" = "--report" && print_report && exit 0
 test "$1" = "--color-report" && print_color_report
 test "$1" = "--warnings" && print_warnings
 
+# Make sure smartstart directories exist:
+mkdir -p $SPOOLDIR $LOGDIR
 
 #get parameters and Xidle time
 delta="$1"
