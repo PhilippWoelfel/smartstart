@@ -421,7 +421,7 @@ if [ "$STATS" = "True" ]; then
   set -e
   # test  $NB_WARN -gt 0 && echo -e -n "$REPORT_WARNCOLOR"
   # test  $NB_ERR -gt 0 && echo -e -n "$REPORT_ERRCOLOR"
-  echo -e "Among $TOTAL commands $NB_SUCCESS have status success, $NB_WARN status warn, and $NB_ERR status error.${RESETCOLOR}"
+  echo -e "Among $TOTAL different smarstart commands $NB_SUCCESS have status success, $NB_WARN status warn, and $NB_ERR status error.${RESETCOLOR}"
 fi
 
 if [ "$REPORT" != "True" -a "$STATS" != "True" ]; then
