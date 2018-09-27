@@ -1,7 +1,5 @@
 
 #!/bin/bash
-#Needs ansi-color installed: https://code.google.com/p/ansi-color/
-
 SMSTDIR=$HOME/.smartstart
 SPOOLDIR=$SMSTDIR/spool
 LOGDIR="$SMSTDIR/log"
@@ -13,13 +11,15 @@ RESETCOLOR="\e[0m"
 
 ##################################################
 #These can be changed by the user:
-#For excape sequences see https://misc.flogisoft.com/bash/tip_colors_and_formatting
-user_variables="SUCCESSCOLOR ERRCOLOR WARNCOLOR WARNTIME ERRTIME"
+#For escape sequences see https://misc.flogisoft.com/bash/tip_colors_and_formatting
+user_variables="SUCCESSCOLOR ERRCOLOR REPORT_SUCCESSCOLOR REPORT_ERRCOLOR REPORT_WARNCOLOR WARNTIME ERRTIME"
 SUCCESSCOLOR="\e[48;5;28m"
 ERRCOLOR="\e[41m"
-WARNCOLOR="\e[43m"
+REPORT_SUCCESSCOLOR="\e[48;5;28m"
+REPORT_ERRCOLOR="\e[48;5;1m"
+REPORT_WARNCOLOR="\e[48;5;172m"
 WARNTIME=3d
-ERRTIME=7d
+ERRTIME=5d
 ##################################################
 
 function print_usage {
@@ -35,18 +35,31 @@ EOF
   exit 1
 }
 
-function report {
+function report_line {
  now=`date +%s`
  shift 2
- cmdname=`cat "$*"`
+
+ cmdname="$*"
  hash=`get_hash "$cmdname"`
  SPOOLFILE="$SPOOLDIR"/"$hash"
- modtime=`stat -c"%Y" $SPOOLFILE`
- seconds=$((now-modtime))
- minutes=$((seconds/60))
- hours=$((minutes/60))
- days=$((hours/24))
- printf "%03dd %02dh %02dm ago:   $cmdname  (`basename $SPOOLFILE`)\n" ${days} $((hours%24)) $((minutes%60))
+
+ if [ -r $SPOOLFILE ]; then
+   #If $SPOOLFILE exists, set its modification time
+   modtime=`stat -c"%Y" $SPOOLFILE`
+   seconds=$((now-modtime))
+   minutes=$((seconds/60))
+   hours=$((minutes/60))
+   days=$((hours/24))
+   # Set colors:
+   echo -en "$REPORT_SUCCESSCOLOR"
+   test $minutes -gt $WARNMIN && echo -en "$REPORT_WARNCOLOR"
+   test $minutes -gt $ERRMIN && echo -en "$REPORT_ERRCOLOR"
+   # Output
+   printf "%03dd %02dh %02dm ago: $cmdname  (`basename $SPOOLFILE`)" ${days} $((hours%24)) $((minutes%60))
+ else
+  echo -en "${REPORT_ERRCOLOR}Never successful: ${cmdname}"
+ fi
+ echo -e "${RESETCOLOR}"
 }
 
 function print_report {
@@ -251,6 +264,7 @@ set -- $($GETOPT --unquoted --options c:d:hr --longoptions conf:,dbase:,help,rep
 echo checking options "$*"
 
 # Checking options
+REPORT=0
 while (($#)); do
   case "$1" in
     -d|--dbase)
@@ -308,38 +322,51 @@ fi
 lineno=0
 set -e
 while read -r line; do
-    ((lineno+=1))
     #note: $line has leading and trailing white space removed!
-    set -- "$line"
+    ((lineno+=1))
+    #echo $lineno: $line
 
     #Test for comment and empty lines
+    line="$(echo $line | sed -e 's%\([^#]*\)#.*%\1%')" #Remove comments
+    line="$(echo $line | sed -e 's%^[[:space:]]*%%')" #Remove leading white space
     test -z "$line" && continue
-    set +e
-    comment=`echo "$line" | grep -x "#.*$"`
-    set -e
-    test -z "$comment" || continue
 
-    #Test for variable settings:
+    #Check if the line looks like a variable specification:
     set +e
-    var=""
-    for v in ${user_variables}; do
-      var=$var`echo "$line" | grep -x "$v=.*$"`
-    done
+    varspec=$(echo "$line" | grep -x "[^[:space:]]*=.*$")
     set -e
-
-    if [ -z "$var" ]; then
-        #If we're note setting a variable, then either report or run smartstart script:
+    if [ ! -z $varspec ]; then
+      # Looks like a variable specification
+      var=""
+      set +e
+      for v in ${user_variables}; do
+        var=$var`echo "$line" | grep -x "$v=.*$"`
+      done
+      set -e
+      # If it is a valid variable, then $var now has the set command
+      if [ -z "$var" ]; then
+        # Unknown variable specified. Get its name and print error
+        var=$(echo $line | sed -e 's%\([^[:space:]]*\)=.*$%\1%')
+        echo "error (line $lineno): unknown variable '$var'"
+      else
+        #set the variable and check the syntax
+        test "$REPORT" = "1" || echo "setting $var"
+        eval $var
+        string_to_minutes "$WARNTIME" WARNMIN || echo "error (line $lineno): invalid time specification"
+        string_to_minutes "$ERRTIME" ERRMIN || echo "error (line $lineno): invalid time specification"
+      fi
+    else
+      # The line is not a variable specification. Try to execute it.
+      set -- $line
+      if [ $# -ge 3 ]; then #make sure there are at least 3 arguments
         if [ "$REPORT" = "1" ]; then
-          report $*
+          report_line $*
         else
           run_it $* || echo "error in line $lineno"
         fi
-    else
-      #set the variable and check the syntax
-      echo "setting $var"
-      eval $var
-      string_to_minutes "$WARNTIME" WARNMIN || echo "error (line $lineno): invalid time specification"
-      string_to_minutes "$ERRTIME" ERRMIN || echo "error (line $lineno): invalid time specification"
+      else
+        echo "error (line $lineno): syntax error in command specification"
+      fi
     fi
 done < "$CONF"
 
