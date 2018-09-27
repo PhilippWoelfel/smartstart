@@ -225,6 +225,63 @@ function run_it {
   echo -e "-----------------------------------------------------------------------------\n\n" | tee -a "$OUTLOG" "$ERRLOG" > /dev/null
 }
 
+function process_configuration_file {
+  #########################################
+  # Parsing the configuration file
+  #########################################
+  lineno=0
+  set -e
+  while read -r line; do
+      #note: $line has leading and trailing white space removed!
+      ((lineno+=1))
+      #echo $lineno: $line
+
+      #Test for comment and empty lines
+      line="$(echo $line | sed -e 's%\([^#]*\)#.*%\1%')" #Remove comments
+      line="$(echo $line | sed -e 's%^[[:space:]]*%%')" #Remove leading white space
+      test -z "$line" && continue
+
+      #Check if the line looks like a variable specification:
+      set +e
+      varspec=$(echo "$line" | grep -x "[^[:space:]]*=.*$")
+      set -e
+      if [ ! -z $varspec ]; then
+        # Looks like a variable specification
+        var=""
+        set +e
+        for v in ${user_variables}; do
+          var=$var`echo "$line" | grep -x "$v=.*$"`
+        done
+        set -e
+        # If it is a valid variable, then $var now has the set command
+        if [ -z "$var" ]; then
+          # Unknown variable specified. Get its name and print error
+          var=$(echo $line | sed -e 's%\([^[:space:]]*\)=.*$%\1%')
+          echo "error (line $lineno): unknown variable '$var'"
+        else
+          #set the variable and check the syntax
+          test "$REPORT" = "1" || echo "setting $var"
+          eval $var
+          string_to_minutes "$WARNTIME" WARNMIN || echo "error (line $lineno): invalid time specification"
+          string_to_minutes "$ERRTIME" ERRMIN || echo "error (line $lineno): invalid time specification"
+        fi
+      else
+        # The line is not a variable specification. Try to execute it.
+        set -- $line
+        if [ $# -ge 3 ]; then #make sure there are at least 3 arguments
+          if [ "$REPORT" = "1" ]; then
+            report_line $*
+          else
+            run_it $* || echo "error in line $lineno"
+          fi
+        else
+          echo "error (line $lineno): syntax error in command specification"
+        fi
+      fi
+  done < "$CONF"
+}
+
+
 #########################################
 # Error handling
 # See https://www.davidpashley.com/articles/writing-robust-shell-scripts/#id2382181
@@ -315,67 +372,8 @@ if [ ! -r "$DBASE" ]; then
   touch "$DBASE" > /dev/null || echo "error: cannot create '$DBASE'" && exit 1
 fi
 
-#########################################
-# Parsing the configuration file
-#########################################
-#while IFS='' read -r line || [[ -n "$line" ]]; do
-lineno=0
-set -e
-while read -r line; do
-    #note: $line has leading and trailing white space removed!
-    ((lineno+=1))
-    #echo $lineno: $line
-
-    #Test for comment and empty lines
-    line="$(echo $line | sed -e 's%\([^#]*\)#.*%\1%')" #Remove comments
-    line="$(echo $line | sed -e 's%^[[:space:]]*%%')" #Remove leading white space
-    test -z "$line" && continue
-
-    #Check if the line looks like a variable specification:
-    set +e
-    varspec=$(echo "$line" | grep -x "[^[:space:]]*=.*$")
-    set -e
-    if [ ! -z $varspec ]; then
-      # Looks like a variable specification
-      var=""
-      set +e
-      for v in ${user_variables}; do
-        var=$var`echo "$line" | grep -x "$v=.*$"`
-      done
-      set -e
-      # If it is a valid variable, then $var now has the set command
-      if [ -z "$var" ]; then
-        # Unknown variable specified. Get its name and print error
-        var=$(echo $line | sed -e 's%\([^[:space:]]*\)=.*$%\1%')
-        echo "error (line $lineno): unknown variable '$var'"
-      else
-        #set the variable and check the syntax
-        test "$REPORT" = "1" || echo "setting $var"
-        eval $var
-        string_to_minutes "$WARNTIME" WARNMIN || echo "error (line $lineno): invalid time specification"
-        string_to_minutes "$ERRTIME" ERRMIN || echo "error (line $lineno): invalid time specification"
-      fi
-    else
-      # The line is not a variable specification. Try to execute it.
-      set -- $line
-      if [ $# -ge 3 ]; then #make sure there are at least 3 arguments
-        if [ "$REPORT" = "1" ]; then
-          report_line $*
-        else
-          run_it $* || echo "error in line $lineno"
-        fi
-      else
-        echo "error (line $lineno): syntax error in command specification"
-      fi
-    fi
-done < "$CONF"
-
-exit
-#########################################
-
-thiscmd="$*"
-
-test "$1" = "--help" && print_usage
-test "$1" = "--report" && print_report && exit 0
-test "$1" = "--color-report" && print_color_report
-test "$1" = "--warnings" && print_warnings
+if [ "$REPORT" = "1" ]; then
+  process_configuration_file | uniq
+else
+  process_configuration_file
+fi
