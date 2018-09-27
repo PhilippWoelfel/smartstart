@@ -1,127 +1,125 @@
-
 #!/bin/bash
+
+##################################################
+# Required executables
+# We will check whether all the onese mentioned in $exec_list are present
+DATE=`which date`
+GETOPT=`which getopt`
+GREP=`which grep`
+MD_SUM=`which md5sum`
+SED=`which sed`
+SORT=`which sort`
+TR=`which tr`
+UNIQ=`which uniq`
+WC=`which wc`
+XPRINTIDLE=`which xprintidle`
+exec_list="$GETOPT $GREP $MD_SUM $SED $SORT $TR $UNIQ $WC $XPRINTIDLE"
+##################################################
+
+
+##################################################
+# Default directories and files
+##################################################
 SMSTDIR=$HOME/.smartstart
 SPOOLDIR=$SMSTDIR/spool
 LOGDIR="$SMSTDIR/log"
 DBASE="$SMSTDIR/dbase.csv"
-CONF="$SMSTDIR/smartstart.conf"
-
 RESETCOLOR="\e[0m"
 
 
 ##################################################
 #These can be changed by the user:
 #For escape sequences see https://misc.flogisoft.com/bash/tip_colors_and_formatting
-user_variables="SUCCESSCOLOR ERRCOLOR REPORT_SUCCESSCOLOR REPORT_ERRCOLOR REPORT_WARNCOLOR WARNTIME ERRTIME"
 SUCCESSCOLOR="\e[48;5;28m"
 ERRCOLOR="\e[41m"
 REPORT_SUCCESSCOLOR="\e[48;5;28m"
 REPORT_ERRCOLOR="\e[48;5;1m"
 REPORT_WARNCOLOR="\e[48;5;172m"
 WARNTIME=3d
-ERRTIME=5d
+ERRTIME=7d
+##################################################
+user_variables="SUCCESSCOLOR ERRCOLOR REPORT_SUCCESSCOLOR REPORT_ERRCOLOR REPORT_WARNCOLOR WARNTIME ERRTIME"
 ##################################################
 
+
+##################################################
+#Affected by options
+STATS="False" # Whether or not "--stats" option was chosen
+REPORT="False" # Whether or not "--report" option was chosen
+REPORT_LEVEL=0
+COLPRE="" # Will be set to $RESETCOLOR, if "--nocolor" option was chosen.
+CONFFILE="$HOME/.config/smartstart.conf" # Configuration file; can be changed by option
+##################################################
+
+SCRIPTNAME=$0
+
 function print_usage {
- SNAME=`basename $0`
- cat <<"EOF"
-usage: $SNAME [<options>] <command>
+  s=`basename $SCRIPTNAME`
+ cat <<EOF
+usage: $s [<options>] <command>
 
 options:
-[-c|--conf] <filename>: specify a configuration file (default: "$CONF").
-[-d|--dbase] <filename>": use <filename> for database (default: "$DBASE").
+[-c|--conf] <filename>: specify a configuration file (default: "$CONFFILE").
 
 EOF
   exit 1
 }
 
 function report_line {
- now=`date +%s`
- shift 2
+  # $1 is used for return value
+  # The rest of the argument is a command line
+  # Prints the command status, and stores status in $1
+  # Status: 0 if success, 1 if warning, 2 if error.
+  #
+  __stat=$1
+  shift 3
 
- cmdname="$*"
- hash=`get_hash "$cmdname"`
- SPOOLFILE="$SPOOLDIR"/"$hash"
+  cmdname="$*"
+  hash=`get_hash "$cmdname"`
+  SPOOLFILE="$SPOOLDIR"/"$hash"
 
- if [ -r $SPOOLFILE ]; then
-   #If $SPOOLFILE exists, set its modification time
-   modtime=`stat -c"%Y" $SPOOLFILE`
-   seconds=$((now-modtime))
-   minutes=$((seconds/60))
-   hours=$((minutes/60))
-   days=$((hours/24))
-   # Set colors:
-   echo -en "$REPORT_SUCCESSCOLOR"
-   test $minutes -gt $WARNMIN && echo -en "$REPORT_WARNCOLOR"
-   test $minutes -gt $ERRMIN && echo -en "$REPORT_ERRCOLOR"
-   # Output
-   printf "%03dd %02dh %02dm ago: $cmdname  (`basename $SPOOLFILE`)" ${days} $((hours%24)) $((minutes%60))
- else
-  echo -en "${REPORT_ERRCOLOR}Never successful: ${cmdname}"
- fi
- echo -e "${RESETCOLOR}"
-}
+  #If $SPOOLFILE exists, set its modification time
+  now=`${DATE} +%s`
+  modtime=0 # Use beginning of epoch in case SPOOLFILE does not exist
+  test -r $SPOOLFILE && modtime=`stat -c"%Y" $SPOOLFILE`
+  seconds=$((now-modtime))
+  minutes=$((seconds/60))
+  hours=$((minutes/60))
+  days=$((hours/24))
 
-function print_report {
- now=`date +%s`
-# echo time passed since last successful runs:
-#echo
-
-#  echo -e ${LIGHTRED} smartstart report:
- for sfile in $SPOOLDIR/*; do
-   cmdname=`cat "$sfile"`
-   hash=`get_hash "$cmdname"`
-   modtime=`stat -c"%Y" $sfile`
-   seconds=$((now-modtime))
-   minutes=$((seconds/60))
-   hours=$((minutes/60))
-   days=$((hours/24))
-   printf "%03dd %02dh %02dm ago:   $cmdname  (`basename $sfile`)\n" ${days} $((hours%24)) $((minutes%60))
-#    printf "%03dd %02dh %02dm %02ds ago:   $cmdname  (`basename $sfile`)\n" ${days} $((hours%24)) $((minutes%60)) $((seconds%60))
- done | sort -r
-}
-
-function print_color_report {
-  print_report | \
-  while read line; do
-    days=`echo $line | cut -c 1-3`
-    col="$(color green)"
-    test $days -ge 2 && col="$(color black yellow)"
-    test $days -ge 7 && col="$(color black magenta)"
-#     test $days -gt 3 && echo "$(color black magenta)$line$(color nm)"
-    echo "$col$line$(color nm)"
-  done
-  exit 0
-}
-
-function do_print_warnings {
-  print_report | \
-  while read line; do
-    days=`echo $line | cut -c 1-3`
-    col=""
-    test $days -ge $WARNTIME && col="$(color black yellow)"
-    test $days -ge $ERRTIME && col="$(color black magenta)"
-    test "$col" != "" && echo "$col$line$(color nm)" && wct=$((wct+1))
-  done
-}
-
-function count_scripts {
-  print_report | wc -l
-}
-
-function print_warnings {
-  scripts=`print_report | wc -l`
-  warnings=`do_print_warnings | wc -l`
-  if [ $warnings -ge 1 ]; then
-    echo "${scripts} smartsart scripts were run in the last $WARNTIME days"
-    echo "$(color black magenta)Warnings:$(color nm)"
-    do_print_warnings
+  # Set colors and return possibly return if report level is low enough
+  if [ $minutes -le $WARNMIN ]; then
+    OUTPREFIX="(s)"
+    eval $__stat=0 #Set return status
+    test $REPORT_LEVEL -gt 0 && return
+    echo -en "${RESETCOLOR}$REPORT_SUCCESSCOLOR"
   else
-    echo "$(color black green)${scripts} smartsart scripts were run in the last $WARNTIME days$(color nm)"
+    if [ $minutes -le $ERRMIN ]; then
+     OUTPREFIX="(w)"
+     eval $__stat=1 #Set return status
+     test $REPORT_LEVEL -gt 1 && return
+     echo -en "${RESETCOLOR}$REPORT_WARNCOLOR"
+    fi
   fi
-  exit 0
-}
+  if [ $minutes -gt $ERRMIN ]; then
+    OUTPREFIX="(e)"
+    eval $__stat=2 #Set return status
+    echo -en "${RESETCOLOR}$REPORT_ERRCOLOR"
+  fi
 
+  #Reset color, if --nocolor option was chosen
+  echo -en "${COLPRE}"
+
+  # Output
+  if [ $modtime = 0 ]; then
+    echo -en "${REPORT_ERRCOLOR}${COLPRE}$OUTPREFIX Never successful: ${cmdname}"
+  else
+    printf "$OUTPREFIX %03dd %02dh %02dm ago: $cmdname  (`basename $SPOOLFILE`)" ${days} $((hours%24)) $((minutes%60))
+  fi
+
+  echo -e "${RESETCOLOR}"
+  return
+}
 
 
 function string_to_minutes {
@@ -157,7 +155,7 @@ function get_hash {
  echo "$hash"
 }
 
-function run_it {
+function run_line {
   #get parameters and Xidle time
   delta="$1"
   shift
@@ -166,7 +164,7 @@ function run_it {
   to_exec="$*"
 
   hash=`get_hash "$to_exec"`
-  d=`date "+%Y-%m-%d %H:%M:%S"`
+  d=`${DATE} "+%Y-%m-%d %H:%M:%S"`
   echo -n "$to_exec ($hash). "
   XidleMin=0
   XidleMSec=`$XPRINTIDLE`
@@ -174,7 +172,7 @@ function run_it {
   test -z "$XidleSec" || XidleMin=$(($XidleSec/60))
   #test "$delta" = "-h" -o "$idle" = "-h" -o "$to_exec" = "-h" && return 1
 
-  #f=`date "+%H%M%S"`
+  #f=`${DATE} "+%H%M%S"`
   #echo "$f: $XidleSec sec = $XidleMin min"
 
   #convert strings "delta" and "idle" into integers repr. minutes
@@ -191,7 +189,7 @@ function run_it {
 
   #Check delta time
   if [ -e "$SPOOLFILE" ]; then
-    s=`find "$SPOOLFILE" -cmin "-$delta_mins" -print | tr -d ' '`
+    s=`find "$SPOOLFILE" -cmin "-$delta_mins" -print | ${TR} -d ' '`
     test "$s" != "" && echo "Insufficient delta time (${delta_mins}m)" && return 0
   fi
 
@@ -214,7 +212,6 @@ function run_it {
 
   echo -e "-----------------------------------------------------------------------------\nExit status: $EXITSTAT" | tee -a "$OUTLOG" "$ERRLOG" > /dev/null
 
-
   # Check return status
   if [ "$EXITSTAT" = "0" ]; then
     echo -e "${SUCCESSCOLOR}Success.${RESETCOLOR}"
@@ -226,41 +223,46 @@ function run_it {
 }
 
 function process_configuration_file {
-  #########################################
-  # Parsing the configuration file
-  #########################################
+  #####################################################################
+  # Parses the configuration file and either executes or reports each
+  # line, depending on status of REPORT variable
+  # If REPORT=True, then it sets $1, $2, and $3 to the number
+  # of successes, warnings, and errors reported
+  #####################################################################
   lineno=0
-  set -e
+  # The following array will contain the number of successful/failed/and errors.
+  # But we're not using it right now.
+  STATARR=(0 0 0)
   while read -r line; do
       #note: $line has leading and trailing white space removed!
       ((lineno+=1))
       #echo $lineno: $line
 
       #Test for comment and empty lines
-      line="$(echo $line | sed -e 's%\([^#]*\)#.*%\1%')" #Remove comments
-      line="$(echo $line | sed -e 's%^[[:space:]]*%%')" #Remove leading white space
+      line="$(echo $line | ${SED} -e 's%\([^#]*\)#.*%\1%')" #Remove comments
+      line="$(echo $line | ${SED} -e 's%^[[:space:]]*%%')" #Remove leading white space
       test -z "$line" && continue
 
       #Check if the line looks like a variable specification:
       set +e
-      varspec=$(echo "$line" | grep -x "[^[:space:]]*=.*$")
+      varspec=$(echo "$line" | ${GREP} -x "[^[:space:]]*=.*$")
       set -e
       if [ ! -z $varspec ]; then
         # Looks like a variable specification
         var=""
         set +e
         for v in ${user_variables}; do
-          var=$var`echo "$line" | grep -x "$v=.*$"`
+          var=$var`echo "$line" | ${GREP} -x "$v=.*$"`
         done
         set -e
         # If it is a valid variable, then $var now has the set command
         if [ -z "$var" ]; then
           # Unknown variable specified. Get its name and print error
-          var=$(echo $line | sed -e 's%\([^[:space:]]*\)=.*$%\1%')
+          var=$(echo $line | ${SED} -e 's%\([^[:space:]]*\)=.*$%\1%')
           echo "error (line $lineno): unknown variable '$var'"
         else
           #set the variable and check the syntax
-          test "$REPORT" = "1" || echo "setting $var"
+          test "$REPORT" = "False" && echo "setting $var"
           eval $var
           string_to_minutes "$WARNTIME" WARNMIN || echo "error (line $lineno): invalid time specification"
           string_to_minutes "$ERRTIME" ERRMIN || echo "error (line $lineno): invalid time specification"
@@ -269,16 +271,18 @@ function process_configuration_file {
         # The line is not a variable specification. Try to execute it.
         set -- $line
         if [ $# -ge 3 ]; then #make sure there are at least 3 arguments
-          if [ "$REPORT" = "1" ]; then
-            report_line $*
+          if [ "$REPORT" = "True" ]; then
+            #Output report for line $*, and store return value in stat
+            report_line stat $*
+            ((STATARR[$stat]+=1))
           else
-            run_it $* || echo "error in line $lineno"
+            run_line $* || echo "error in line $lineno"
           fi
         else
           echo "error (line $lineno): syntax error in command specification"
         fi
       fi
-  done < "$CONF"
+  done < "$CONFFILE"
 }
 
 
@@ -296,12 +300,8 @@ set -u #stop if using uninitialized variable
 #########################################
 #Check executables
 #XIDLETIME=$HOME/bin/xidletime.py
-GETOPT=`which getopt`
-MD_SUM=`which md5sum`
-XPRINTIDLE=`which xprintidle`
-for cmd in {$MD_SUM,$XPRINTIDLE,$GETOPT}; do
+for cmd in $exec_list; do
   if [ ! -x "$cmd" ]; then
-   print_usage
    echo "error: cannot find executable '$cmd'"
    exit 1
   fi
@@ -317,28 +317,49 @@ string_to_minutes "$ERRTIME" ERRMIN
 #########################################
 # Parsing parameters
 #########################################
-set -- $($GETOPT --unquoted --options c:d:hr --longoptions conf:,dbase:,help,report -- "$@")
-echo checking options "$*"
+set -- $($GETOPT --unquoted --options c:d:r:hns --longoptions conf:,dbase:,report:,help,nocolor,stats -- "$@")
+#echo checking options "$*"
 
 # Checking options
-REPORT=0
 while (($#)); do
   case "$1" in
+    -c|--conf)
+        CONFFILE="$2"
+        shift 2
+        ;;
     -d|--dbase)
       DBASE="$2"
       shift 2
       ;;
-    -c|--conf)
-        CONF="$2"
-        shift 2
-        ;;
     -h|--help)
         shift
         print_usage
         ;;
-    -r|--report)
+    -n|--nocolor)
         shift
-        REPORT=1
+        COLPRE="$RESETCOLOR"
+        ;;
+    -r|--report)
+        REPORT="True"
+        # Test if parameter is integer:
+        if [[ $2 =~ ^-?[0-9]+$ ]]; then
+          # Test if parameter is between 0 and 3
+          if [ $2 -ge 0 -a $2 -le 2 ]; then
+            REPORT_LEVEL="$2"
+          else
+            echo "error: report level must be between 0 and 2"
+            exit 1
+          fi
+        else
+          echo -e "error: -r requires numerical argument\n"
+          exit 1
+        fi
+        shift 2
+
+        ;;
+    -s|--stats)
+        shift
+        STATS="True"
         ;;
     --)
       shift
@@ -358,13 +379,13 @@ test -z ${1+x} || print_usage
 for d in {$SPOOLDIR,$LOGDIR}; do
   mkdir -p $d
   if [ ! -d $SPOOLDIR ]; then
-    echo "error: configuration file '$CONF'" not found
+    echo "error: configuration file '$CONFFILE'" not found
     exit 1
   fi
 done
 
-if [ ! -r "$CONF" ]; then
-  echo "error: configuration file '$CONF'" not found
+if [ ! -r "$CONFFILE" ]; then
+  echo "error: configuration file '$CONFFILE'" not found
   exit 1
 fi
 if [ ! -r "$DBASE" ]; then
@@ -372,8 +393,37 @@ if [ ! -r "$DBASE" ]; then
   touch "$DBASE" > /dev/null || echo "error: cannot create '$DBASE'" && exit 1
 fi
 
-if [ "$REPORT" = "1" ]; then
-  process_configuration_file | uniq
-else
+if [ "$REPORT" = "True" ]; then
+  # The following removes duplicate lines and escape sequences
+  process_configuration_file | ${UNIQ}
+  # output=$(process_configuration_file | ${UNIQ} )
+  # echo "$output"
+fi
+
+if [ "$STATS" = "True" ]; then
+  # if [ "$REPORT" != "True" -o "$REPORT_LEVEL" != "0" ]; then
+   # if we haven't computed a proper output already, we need to comput it:
+   # REPORT="True"
+   # REPORT_LEVEL=0
+   # output=$(process_configuration_file | ${UNIQ} )
+  output=$($SCRIPTNAME -r 0)
+  # fi
+  # Remove escape sequences, see
+  # https://www.commandlinefu.com/commands/view/12043/remove-color-special-escape-ansi-codes-from-text-with-sed
+  output=$(echo "$output" | ${SED} "s,\x1B\[[0-9;]*[a-zA-Z],,g")
+
+  # Grep for the right lines
+  set +e
+  NB_SUCCESS=`echo "$output" | ${GREP} -x -c "(s).*$"`
+  NB_WARN=`echo "$output" | ${GREP} -x -c "(w).*$"`
+  NB_ERR=`echo "$output" | ${GREP} -x -c "(e).*$"`
+  TOTAL=`echo "$output" | ${WC} -l`
+  set -e
+  # test  $NB_WARN -gt 0 && echo -e -n "$REPORT_WARNCOLOR"
+  # test  $NB_ERR -gt 0 && echo -e -n "$REPORT_ERRCOLOR"
+  echo -e "Among $TOTAL commands $NB_SUCCESS have status success, $NB_WARN status warn, and $NB_ERR status error.${RESETCOLOR}"
+fi
+
+if [ "$REPORT" != "True" -a "$STATS" != "True" ]; then
   process_configuration_file
 fi
