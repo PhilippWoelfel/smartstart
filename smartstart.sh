@@ -7,19 +7,21 @@ DATE=`which date`
 GETOPT=`which getopt`
 GREP=`which grep`
 MD_SUM=`which md5sum`
+PS=`which ps`
 SED=`which sed`
 SORT=`which sort`
 TR=`which tr`
 UNIQ=`which uniq`
 WC=`which wc`
 XPRINTIDLE=`which xprintidle`
-exec_list="$GETOPT $GREP $MD_SUM $SED $SORT $TR $UNIQ $WC $XPRINTIDLE"
+exec_list="$GETOPT $GREP $MD_SUM $PS $SED $SORT $TR $UNIQ $WC $XPRINTIDLE"
 ##################################################
 
 
 ##################################################
 # Default directories and files
 ##################################################
+SCRIPTNAME=$0
 SMSTDIR=$HOME/.smartstart
 SPOOLDIR=$SMSTDIR/spool
 LOGDIR="$SMSTDIR/log"
@@ -32,6 +34,7 @@ RESETCOLOR="\e[0m"
 #For escape sequences see https://misc.flogisoft.com/bash/tip_colors_and_formatting
 SUCCESSCOLOR="\e[48;5;28m"
 ERRCOLOR="\e[41m"
+WARNCOLOR="\e[48;5;172m"
 REPORT_SUCCESSCOLOR="\e[48;5;28m"
 REPORT_ERRCOLOR="\e[48;5;1m"
 REPORT_WARNCOLOR="\e[48;5;172m"
@@ -51,11 +54,14 @@ COLPRE="" # Will be set to $RESETCOLOR, if "--nocolor" option was chosen.
 CONFFILE="$HOME/.config/smartstart.conf" # Configuration file; can be changed by option
 ##################################################
 
-SCRIPTNAME=$0
+##################################################
+# Other options
+NOW=`${DATE} +%s`
+##################################################
 
 function print_usage {
   s=`basename $SCRIPTNAME`
- cat <<EOF
+  cat <<EOF
 usage: $s [<options>] <command>
 
 options:
@@ -79,10 +85,9 @@ function report_line {
   SPOOLFILE="$SPOOLDIR"/"$hash"
 
   #If $SPOOLFILE exists, set its modification time
-  now=`${DATE} +%s`
   modtime=0 # Use beginning of epoch in case SPOOLFILE does not exist
   test -r $SPOOLFILE && modtime=`stat -c"%Y" $SPOOLFILE`
-  seconds=$((now-modtime))
+  seconds=$((NOW-modtime))
   minutes=$((seconds/60))
   hours=$((minutes/60))
   days=$((hours/24))
@@ -162,10 +167,30 @@ function run_line {
   idle="$1"
   shift
   to_exec="$*"
+  command=`basename "$1"`
+  pidfile=$SPOOLDIR/.$command.pid
 
   hash=`get_hash "$to_exec"`
   d=`${DATE} "+%Y-%m-%d %H:%M:%S"`
   echo -n "$to_exec ($hash). "
+
+
+  if [ -r "$pidfile" ]; then
+    pid=`cat $pidfile | $TR -d ' '`
+    #echo $pid
+    set +e
+    ptime=`$PS -o etime $pid | $GREP "[[:digit:]]:[[:digit:]]" | tr -d ' '`
+    set -e
+    #echo $ptime
+    if [ "$ptime" != "" ]; then
+      echo -e "${WARNCOLOR}Skipping: ${RESETCOLOR}Concurrent process '$command' with PID $pid found. (Elapsed time : $ptime.)"
+      return
+    else
+      echo -n "removing stale PID file."
+      rm "$pidfile"
+    fi
+  fi
+
   XidleMin=0
   XidleMSec=`$XPRINTIDLE`
   XidleSec=$((XidleMSec/1000))
@@ -205,8 +230,11 @@ function run_line {
   ###########################################
   # Executing the command
   #bash -c "$to_exec 2>&1 >> $LOGFILE >& /dev/null"
-  bash -c "$to_exec > >(tee -a $OUTLOG) 2> >(tee -a $ERRLOG >&2)" >& /dev/null
-  ###########################################
+  bash -c "$to_exec > >(tee -a $OUTLOG) 2> >(tee -a $ERRLOG >&2)" >& /dev/null &
+  pid="$!"
+  echo $pid > "$pidfile"
+  wait $!
+  ##########################################
   EXITSTAT="$?"
 
 
