@@ -1,0 +1,21 @@
+#Copy this file to ~/.config/smartstart.conf, and edit it to fit your needs.
+#Then add the following entry to your crontab: @hourly * * * * smartstart
+
+##########################################
+#DEFAULT SETTINGS
+##########################################
+#SUCCESSCOLOR="\e[48;5;28m"
+#ERRCOLOR="\e[41m"
+#WARNCOLOR="\e[48;5;172m"
+#REPORT_SUCCESSCOLOR="\e[48;5;28m"
+#REPORT_ERRCOLOR="\e[48;5;1m"
+#REPORT_WARNCOLOR="\e[48;5;172m"
+#WARNTIME=3d
+#ERRTIME=7d
+
+#########################################
+#Command specifications
+#########################################
+#Run btrfs-scrub at least every 30 days, and every 7 days if 30 minute idle time is encountered
+#7d 30m sudo btrfs scrub start -Bd /home
+#30d 0m sudo btrfs scrub start -Bd /home
