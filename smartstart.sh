@@ -42,7 +42,7 @@ NO_EXECUTE="False" # Will be set to True if "-g" option is chosen
 REPORT_LEVEL=0 # Level of report to be printed (default 0 means no report)
 NOCOLOR="False" # Will be set to true if "--nocolor" option is chosen
 CONFFILE="$HOME/.config/smartstart.conf" # Configuration file; can be changed by option -c
-MAX_REPORT_AGE="1h" #maximum age of report until regeneration; can be changed by option -m
+MAX_REPORT_AGE="2h" #maximum age of report until regeneration; can be changed by option -m
 ##################################################
 
 ##################################################
