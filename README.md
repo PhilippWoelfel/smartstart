@@ -47,7 +47,7 @@ smartstart.sh <options>
 Reads the configuration file (default [~/.config/smartstart.conf]()), and processes the commands specified therein under certain conditions, or reports on their success status.
 
 ## Configuration file
-The configuration file specifies which commands to be run by smartstart, and when.
+The configuration file specifies which commands to be run by `smartstart.sh`, and when.
 In addition it can be used to influence the output of a smartstart execution, and of reports.
 
 Each line must either be a comment (if it starts by `#`), or it must specify a command or set a variable.
@@ -60,7 +60,7 @@ Anything in a line following the symbol `#` is ignored.
   <delta time> <idle time> <command>
   ```
   specifies a command, where `delta time` and `idle time` must be valid [time specifications](#Time-specification).
-  When smartstart is executed, it will try to run the command `<command>` provided it was not run successfully for at least `<delta time>`, and the X system has been idle for at least `<idle time>`.
+  When `smartstart.sh` is executed, it will try to run the command `<command>` provided it was not run successfully for at least `<delta time>`, and the X system has been idle for at least `<idle time>`.
 
   For example, to attempt to run btrfs-scrub weekly on /home at a time when the X-system has been idle for at least 30 minutes, the following line can be put into the configuration file:
 
@@ -79,15 +79,15 @@ Anything in a line following the symbol `#` is ignored.
 ### 2. Specifying variables
   A line of the form `<variable>=<value>` sets the given variable to the given value.
   The following variables are recognized:
-  * `WARNTIME`: Specifies the warning time for the following commands. If a command was not run successfully for the specified amount of time, then it will be reported with the warning flag, when smartstart is run with the option `-r` or `-s`. The default is `3d`.
-  * `ERRTIME`: Specifies the warning time for the following commands. If a command was not run successfully for the specified amount of time, then it will be reported with the error flag, when smartstart is run with the option `-r` or `-s`. The default is `7d`.
+  * `WARNTIME`: Specifies the warning time for the following commands. If a command was not run successfully for the specified amount of time, then it will be reported with the warning flag, when `smartstart.sh` is run with the option `-r` or `-s`. The default is `3d`.
+  * `ERRTIME`: Specifies the warning time for the following commands. If a command was not run successfully for the specified amount of time, then it will be reported with the error flag, when `smartstart.sh` is run with the option `-r` or `-s`. The default is `7d`.
   * `SUCCESSCOLOR`, `WARNCOLOR`, `ERRCOLOR`: Sets the color used to output success, warning, and error messages, following a command execution in the remainder of the smartstart script. Colors can be specified using escape sequences (see [https://misc.flogisoft.com/bash/tip_colors_and_formatting](https://misc.flogisoft.com/bash/tip_colors_and_formatting)).
   * `REPORT_SUCCESSCOLOR`, `REPORT_WARNCOLOR`, `REPORT_ERRCOLOR`: Sets the color used for reporting commands, if the `-r` option is specified. These variables are gloabal, i.e., the last variable specification in the file is being used for reporting. Colors can be specified using escape sequences (see [https://misc.flogisoft.com/bash/tip_colors_and_formatting](https://misc.flogisoft.com/bash/tip_colors_and_formatting)).
 
 ## Reports
 The smarstart option `-r <reportlevel>` allows to print a report that lists all commands specified in the configuration file together with their success statuses. If a command is not run for a certain amount of time (which can be adjusted through the `WARNTIME` and `ERRTIME` variables in the configuration file), it will be flagged as *warning* or *error*. Distinct colors are used in the report to emphasize such commands. For example, to be informed upon each shell start about commands not being run successfully, add this line to [~/.bashrc]() :
 ```bash
-smarstart -r 2
+smarstart.sh -r 2
 ```
 As a result, whenever the user starts a new shell, all commands that have not run successfully for the period specified by `WARNTIME` and `ERRTIME`, will be printed.
 
@@ -95,7 +95,7 @@ Similarly, the option `-s` can be used to print a summary information about the 
 (Note that the information printed with options `-r` and `-s` filters out duplicate command specifications.)
 
 Report generation may take a few seconds, so a fresh report will only be generated once in a while, and then cached. The options `-r` and `-s` use that cached report unless it is too old.
-In particular, when smartstart executes commands, it will generate a report and cache it.
+In particular, when `smartstart.sh` executes commands, it will generate a report and cache it.
 When smartstart is asked to print a report (`-r`) or stats (`-s`), it uses the cached report, unless it is older than the maximum report age, which is 2 hours by default. The maximum report age can be changed using the `-m` option.
 The option `-g` allows to force the generation of a new report.
 
