@@ -532,6 +532,6 @@ if [ "$PRINT_STATS" = "True" ]; then
   exit $?
 fi
 
-if [ "NO_EXECUTE" = "False" ] ;then
+if [ "$NO_EXECUTE" = "False" ] ;then
   process_configuration_file
 fi
