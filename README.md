@@ -19,7 +19,7 @@ Running it at night time on a desktop is problematic, because a user may switch 
 Similarly, running it at system startup may slow down the system when it is likely that a user wants to use it.
 
 ## Installation
-1.Make sure the executable xprintidle (see https://github.com/g0hl1n/xprintidle) is in the $PATH.
+1. Make sure the executable xprintidle (see https://github.com/g0hl1n/xprintidle) is in the $PATH.
 
 1. Copy `smartstart.sh` into a directory in `$PATH`, and create a smarstart configuration file `~/.config/smartstart.config` (see Section [Configuration file](#Configuration-file) below, and the provided sample file [smartstart.config.sample]().
 Then add the following line to crontab (using `crontab -e`):
@@ -53,7 +53,7 @@ In addition it can be used to influence the output of a smartstart execution, an
 Each line must either be a comment (if it starts by `#`), or it must specify a command or set a variable.
 Anything in a line following the symbol `#` is ignored.
 
-1. **Specifying commands:**
+### 1. Specifying commands
   A command can be any string `<cmd>` that can be executed in a bash shell, e.g., using `bash -c "<cmd>"`.  A line of the form
 
   ```
@@ -76,7 +76,7 @@ Anything in a line following the symbol `#` is ignored.
    ```
 
 
-2. **Specifying variables:**
+### 2. Specifying variables
   A line of the form `<variable>=<value>` sets the given variable to the given value.
   The following variables are recognized:
   * `WARNTIME`: Specifies the warning time for the following commands. If a command was not run successfully for the specified amount of time, then it will be reported with the warning flag, when smartstart is run with the option `-r` or `-s`. The default is `3d`.
