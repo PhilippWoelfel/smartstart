@@ -424,22 +424,6 @@ for cmdname in $exec_list; do
 done
 set -e
 
-#########################################
-# Checking / creating files/directories
-#########################################
-for d in {$SPOOLDIR,$LOGDIR}; do
-  mkdir -p "$d"
-  if [ ! -d "$d" ]; then
-    echo "error: cannot create directory '$d'"
-    exit 1
-  fi
-done
-
-if [ ! -r "$CONFFILE" ]; then
-  echo "error: configuration file '$CONFFILE'" not found
-  exit 1
-fi
-
 ##########################################
 # Set default values for warn and err time
 ##########################################
@@ -516,6 +500,23 @@ while (($#)); do
 done
 
 test -z ${1+x} || print_usage
+
+#########################################
+# Checking / creating files/directories
+#########################################
+for d in {$SPOOLDIR,$LOGDIR}; do
+  mkdir -p "$d"
+  if [ ! -d "$d" ]; then
+    echo "error: cannot create directory '$d'"
+    exit 1
+  fi
+done
+
+if [ ! -r "$CONFFILE" ]; then
+  echo "error: configuration file '$CONFFILE'" not found
+  exit 1
+fi
+
 
 if [ "$PRINT_REPORT" = "True" ]; then
   print_report
