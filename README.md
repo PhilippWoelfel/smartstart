@@ -19,51 +19,84 @@ Running it at night time on a desktop is problematic, because a user may switch 
 Similarly, running it at system startup may slow down the system when it is likely that a user wants to use it.
 
 
-## Usage:
-
+## Usage
 ```bash
 smartstart.sh <options>
 ```
 
-Reads the configuration file (default [$HOME/.config/smartstart.conf]()), and processes the commands specified therein.
+Reads the configuration file (default [~/.config/smartstart.conf]()), and processes the commands specified therein under certain conditions, or reports on their success status.
+
+## Configuration file
+The configuration file specifies which commands to be run by smartstart, and when.
+In addition it can be used to influence the output of a smartstart execution, and of reports.
+
+Each line must either be a comment (if it starts by `#`), or it must specifies a command or set a variable.
+Anything in a line following the symbol `#` is ignored.
+
+1. **Specifying commands:**
+  A command can be any string `<cmd>` that can be executed in a bash shell, e.g., using `bash c "<cmd>"`.  A line of the form
+
+  ```
+  <delta time> <idle time> <command>
+  ```
+  specifies a command, where `delta time` and `idle time` must be valid [time specifications](#Time-specification).
+  When smartstart is executed, it will try to run the command `<command>` provided it was not run successfully for at least `<delta time>`, and the X system has been idle for at least `<idle time>`.
+
+  For example, to attempt to run btrfs-scrub on /home, if the system weekly at a time when the X-system has been idle for at least 30 minutes, the following line can be put into the configuration file:
+
+  ```bash
+  7d 30m sudo btrfs scrub start -Bd /home
+  ```
+
+  To run btrfs-scrub on /home in addition unconditionally (no matter whether the X system has been idle) provided it was not run for 30 days, the configuration can be extended by a second line:
+
+  ```bash
+   7d 30m sudo btrfs scrub start -Bd /home
+   30d 0m sudo btrfs scrub start -Bd /home
+   ```
 
 
+2. **Specifying variables:**
+  A line of the form `<variable>=<value>` sets the given variable to the given value.
+  The following variables are recognized:
+  * `WARNTIME`: Specifies the warning time for the following commands. If a command was not run successfully for the specified amount of time, then it will be reported with the warning flag, when smartstart is run with the option `-r` or `-s`. The default is `3d`.
+  * `ERRTIME`: Specifies the warning time for the following commands. If a command was not run successfully for the specified amount of time, then it will be reported with the error flag, when smartstart is run with the option `-r` or `-s`. The default is `7d`.
+  * `SUCCESSCOLOR`, `WARNCOLOR`, `ERRCOLOR`: Sets the color used to output success, warning, and error messages, following a command execution in the remainder of the smartstart script. Colors can be specified using escape sequences (see [https://misc.flogisoft.com/bash/tip_colors_and_formatting](https://misc.flogisoft.com/bash/tip_colors_and_formatting)).
+  * `REPORT_SUCCESSCOLOR`, `REPORT_WARNCOLOR`, `REPORT_ERRCOLOR`: Sets the color used for reporting commands, if the `-r` option is specified. These variables are gloabal, i.e., the last variable specification in the file is being used for reporting. Colors can be specified using escape sequences (see [https://misc.flogisoft.com/bash/tip_colors_and_formatting](https://misc.flogisoft.com/bash/tip_colors_and_formatting)).
 
-Runs `<command>`, if the XWindow system was idle for at least `<idle time>` *and* `<command>` was last run at least `<delta time>` ago.
+## Reports
+The smarstart option `-r <reportlevel>` allows to print a report that lists all commands specified in the configuration file together with their success status. If a command is not run for a certain amount of time (which can be adjusted through the `WARNTIME` and `ERRTIME` variables in the configuration file), it will be flagged as *warning* or *error*. Distinct colors are used in the report to emphasize such commands. For example, to be informed about critical command not being run successfully at each shell start, add this line to [~/.bashrc]() :
+```bash
+smarstart -r 2
+```
+As a result, whenever the user starts a new shell, all commands that have not run successfully for the period specified by `WARNTIME` and `ERRTIME`, will be printed.
 
-Several reports can be obtained by using options `--warnings`, `--report`, or `--color-report`.
+Similarly, the option `-s` can be used to print a summary information about the number of commands and their statuses.
+Note that the information printed with options `-r` and `-s` filters duplicate command specifications.
+
 
 ## Time specification
-Time will be specified in days (d), hours (d), or minutes (m), by the following syntax: `<integer>[m|h|d]`
+Times can be specified in days (d), hours (d), or minutes (m), by the following syntax: `<integer>[m|h|d]`.
 
-## Configuration file:
-Each line is of one of following types:
+## Options
+* `[-c|--conf] <filename>`: use `<filename>` as configuration file instead of [~/.config/smartstart.conf]()
+* `[-g|--generate]`: Force report generation. A report is generated automatically each time smartstart executes command lines (i.e., any time other when the options `-r` or `-s` are used).
+* `[-h|--help]`: Print help
+* `[-m|--max_report_age]`: Set the maximum age of a report (using time specification format above) until it will be regenerated when the options `-r` or `-s` are used. Report generation may take a few seconds, so by default it will only be generated if smartstart executes commands, or if the report is older than the maximum age.
+* `[-n|--nocolor]`: Use no color in output.
+* `[-r|--report] <reportlevel>`: Outputs a report that lists commands together with their flags (successful, warning, error). `<reportlevel>` is in {1,2,3}. Level 1 means that only commands with flag error are reported, level 2 means that only commands with flags error and warning are reported, and level 3 means that all commands are reported.
+* `[-s|--stats]`: Prints stats on the number of commands and their flags.
 
-### Comment Lines
-Indicated by  leading `#`. Comment lines are ignored
 
-### Command specification lines
-Of the form
+## Log files
+The stderr and stdout outputs of commands run by smartstart will be logged in the directory [~/.smartstart/log]() in files with names of the form `<mdfile>.log` (for stdout) and `<mdfile>.err` (for stderr). The prefix `<mdfile>` is the md5sum of the command name. It will be printed together with the command name, when smarstart is called and the command is executed, and also as part of the report (option `-r`).
 
+Since logfiles can become big, it is recommended to use `logrotate` for managing them.
+A default logrotate configuration file [logrotate.conf]() is provided.
+Simply copy that file into the directory [~/.smartstart/]() and add the following line to crontab:
 ```
-  <delta time> <idle time> <command>
+@daily /usr/sbin/logrotate -s ~/.smartstart/logrotate.state ~/.smartstart/logrotate.conf
 ```
-
-where `delta time` and `idle time` must be valid time specifications.
-
-`<command>` will be executed, if it was not run successfully for `<delta time>`, and the X system has been idle for at least `<idle time>`
-
-### Variable configurations
-A line of the form `<variable>=<value>`
-This sets the variable to the given value.
-Currently, the following variables are recognized:
-
-* `WARNTIME`: Reports flag each command in the following command specification lines as *warning*, if the command was not run for the time specified.
-* `ERRTIME`: Reports flag each command in the following command specification lines as *error*, if the command was not run for the time specified.
-
-
 
 ## Requirements:
-* ansi-color: https://code.google.com/p/ansi-color/
 * xprintidle: https://github.com/g0hl1n/xprintidle (executable`xprintidle` must be in $PATH.
-* md5sum
