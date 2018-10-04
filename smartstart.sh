@@ -74,12 +74,15 @@ usage: $s [<options>] <command>
 
 options:
 [-c|--conf] <filename>: specify a configuration file (default: "$CONFFILE").
-[-g|--generate]: only generates a report that is used for options -r or -s (but does not execute the scripts).
-[-r|--report] <level>: prints the latest report (generated with -g) with reporting level <level>, where the levels are
+[-g|--generate]: Force report generation (does not execute any commands).
+[-h|--help]: Print help
+[-m|--max_report_age] <time>: Change the maximum age of cached report.
+[-n|--nocolor]: Use no color in output.
+[-r|--report] <level>: prints the latest cached report with reporting level <level>, where the levels are
                        1: only errors
                        2: errors and warnings
                        3: all messages
-[-s|--status]: prints status information about the scripts run based on the latest report generated with -g
+[-s|--status]: prints status information obtained from the latest cached report.
 
 EOF
   exit 1
@@ -449,6 +452,7 @@ while (($#)); do
         ;;
     -g|--generate)
         NO_EXECUTE="True"
+        process_configuration_file
         shift
         ;;
     -h|--help)
@@ -528,4 +532,6 @@ if [ "$PRINT_STATS" = "True" ]; then
   exit $?
 fi
 
-process_configuration_file
+if [ "NO_EXECUTE" = "False" ] ;then
+  process_configuration_file
+fi
