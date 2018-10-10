@@ -82,6 +82,7 @@ options:
                        1: only errors
                        2: errors and warnings
                        3: all messages
+[--run] '<cmd>': Runs command <cmd> unconditionally. It is recommended to use quotes '' around the command to avoid parameter expansion.
 [-s|--status]: prints status information obtained from the latest cached report.
 
 EOF
@@ -190,6 +191,7 @@ function run_line {
   idle="$1"
   shift
   to_exec="$*"
+  # echo "...$to_exec..."
   command=`basename "$1"`
   pidfile=$SPOOLDIR/.$command.pid
 
@@ -437,7 +439,7 @@ string_to_minutes "$ERRTIME" ERRMIN
 #########################################
 # Parsing parameters
 #########################################
-opt=$($GETOPT --unquoted --options c:m:r:ghns --longoptions conf:,max_report_age:,report:,generate,help,nocolor,stats -- "$@")
+opt=$($GETOPT --unquoted --options c:m:r:ghns --longoptions conf:,max_report_age:,report:,run:,generate,help,nocolor,stats -- "$@")
 set -- $opt
 #echo checking options "$*"
 
@@ -485,6 +487,13 @@ while (($#)); do
         fi
         shift 2
         ;;
+    --run)
+      shift
+      set -- "${@:1:$(($#-1))}" # Remove last argument, which is "--"
+      run_line 0m 0m "$*"
+      $SCRIPTNAME --generate
+      exit
+      ;;
     -s|--stats)
         shift
         if [ "$PRINT_REPORT" = "True" ]; then

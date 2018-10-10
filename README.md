@@ -99,6 +99,15 @@ In particular, when `smartstart.sh` executes commands, it will generate a report
 When smartstart is asked to print a report (`-r`) or stats (`-s`), it uses the cached report, unless it is older than the maximum report age, which is 2 hours by default. The maximum report age can be changed using the `-m` option.
 The option `-g` allows to force the generation of a new report.
 
+## Forcing commands to run
+To force running a command with smartstart and updating its status, execute
+```bash
+smartstart --run '<command>'
+```
+This executes `<command>` and updates its status for reporting.
+Note that quotes around the command may be required, e.g., to avoid shell expansion.
+(Shell expansion of variables, e.g., `$HOME` may leads to a different command name than the corresponding command specified in the configuration file, and thus the status of the specified command in the configuration file may not be updated correctly.)
+
 
 ## Time specification
 Times can be specified in days (d), hours (d), or minutes (m), by the following syntax: `<integer>[m|h|d]`.
@@ -110,6 +119,7 @@ Times can be specified in days (d), hours (d), or minutes (m), by the following 
 * `[-m|--max_report_age] <time>`: Set the maximum age of cached report to `<time>` until it will be regenerated when the options `-r` or `-s` are used. Report generation may take a few seconds, so by default it will only be generated if smartstart executes commands, or if the report is older than the maximum age.
 * `[-n|--nocolor]`: Use no color in output.
 * `[-r|--report] <reportlevel>`: Outputs a report that lists commands together with their flags (successful, warning, error). `<reportlevel>` is in {1,2,3}. Level 1 means that only commands with flag error are reported, level 2 means that only commands with flags error and warning are reported, and level 3 means that all commands are reported.
+* `[--run] '<cmd>'`: Runs command `<cmd>` unconditionally. It is recommended to use quotes '' around the command to avoid parameter expansion.
 * `[-s|--stats]`: Prints stats on the number of commands and their flags.
 
 
