@@ -102,7 +102,7 @@ The option `-g` allows to force the generation of a new report.
 ## Forcing commands to run
 To force running a command with smartstart and updating its status, execute
 ```bash
-smartstart --run '<command>'
+smartstart.sh --run '<command>'
 ```
 This executes `<command>` and updates its status for reporting.
 Note that quotes around the command may be required, e.g., to avoid shell expansion.
