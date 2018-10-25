@@ -63,7 +63,6 @@ user_variables="SUCCESSCOLOR ERRCOLOR WARNCOLOR REPORT_SUCCESSCOLOR REPORT_ERRCO
 ##################################################
 # Other variables
 SCRIPTNAME=$0
-NOW=`${DATE} +%s`
 RESETCOLOR="\e[0m"
 ##################################################
 
@@ -105,6 +104,7 @@ function report_line {
   #If $SPOOLFILE exists, set its modification time
   modtime=0 # Use beginning of epoch in case SPOOLFILE does not exist
   test -r $SPOOLFILE && modtime=`stat -c"%Y" $SPOOLFILE`
+  NOW=`${DATE} +%s`
   seconds=$((NOW-modtime))
   minutes=$((seconds/60))
   hours=$((minutes/60))
@@ -192,7 +192,7 @@ function run_line {
   shift
   to_exec="$*"
   # echo "...$to_exec..."
-  command=`basename "$1"`
+  command=`basename $1`
   pidfile=$SPOOLDIR/.$command.pid
 
   hash=`get_hash "$to_exec"`
@@ -201,7 +201,7 @@ function run_line {
 
 
   if [ -r "$pidfile" ]; then
-    pid=`"$CAT" $pidfile | $TR -d ' '`
+    pid=`"$CAT" "$pidfile" | $TR -d ' '`
     #echo $pid
     set +e
     ptime=`$PS -o etime $pid | $GREP "[[:digit:]]:[[:digit:]]" | tr -d ' '`
@@ -328,7 +328,7 @@ function process_configuration_file {
         # The line is not a variable specification. Try to execute it.
         set -- $line
         if [ $# -ge 3 ]; then #make sure there are at least 3 arguments
-          if [ "$NO_EXECUTE" != "True" ]; then
+          if [ "$NO_EXECUTE" != "True" ]; then #Check the NO_EXECUTE flag
             run_line $* || echo "error in line $lineno"
           fi
           #Output report for line $*, and store return value in stat
