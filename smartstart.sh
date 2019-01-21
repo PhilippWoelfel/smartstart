@@ -191,7 +191,8 @@ function run_line {
   idle="$1"
   shift
   to_exec="$*"
-  # echo "...$to_exec..."
+  echo "...$to_exec..."
+  echo "$1"
   command=`basename $1`
   pidfile=$SPOOLDIR/.$command.pid
 
@@ -490,7 +491,7 @@ while (($#)); do
     --run)
       shift
       set -- "${@:1:$(($#-1))}" # Remove last argument, which is "--"
-      run_line 0m 0m "$*"
+      run_line 0m 0m $*
       $SCRIPTNAME --generate
       exit
       ;;
