@@ -285,8 +285,9 @@ function process_configuration_file {
   #####################################################################
   lineno=0
 
-  # Remove the report file
-  $RM -f "$REPORT_FILE"
+  # Replace the report file
+  echo "smarstart in progress -- no report available" > "$REPORT_FILE"
+#  $RM -f "$REPORT_FILE"
 
   # The following array will contain the number of successful/failed/and errors.
   # But we're not using it right now.
