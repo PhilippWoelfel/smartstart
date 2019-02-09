@@ -22,7 +22,7 @@ SORT="sort"
 TR="tr"
 UNIQ="uniq"
 WC="wc"
-XPRINTIDLE="$HOME/xprintidle"
+XPRINTIDLE="xprintidle"
 exec_list="$CAT $DATE $GETOPT $GREP $MD_SUM $MV $PS $RM $SED $SORT $TR $UNIQ $WC $XPRINTIDLE"
 ##################################################
 
@@ -178,29 +178,31 @@ function get_hash {
 }
 
 function run_line {
-  # Make sure no colors are printed if --nocolor option was chosen
-  if [ "$NOCOLOR" = "True" ]; then
-    WARNCOLOR=""
-    ERRCOLOR=""
-    SUCCESSCOLOR=""
-  fi
-
-  #get parameters and Xidle time
+  ##########################################
+  #Set up variables
   delta="$1"
   shift
   idle="$1"
   shift
   to_exec="$*"
-  echo "...$to_exec..."
-  echo "$1"
   command=`basename $1`
   pidfile=$SPOOLDIR/.$command.pid
 
   hash=`get_hash "$to_exec"`
-  d=`${DATE} "+%Y-%m-%d %H:%M:%S"`
+  SPOOLFILE="$SPOOLDIR"/"$hash"
+  ERRLOG="$LOGDIR"/"$hash.err"
+  OUTLOG="$LOGDIR"/"$hash.log"
+
+  # Make sure no colors are printed if --nocolor option was chosen
+  if [ "$NOCOLOR" = "True" ]; then
+    WARNCOLOR=""; ERRCOLOR=""; SUCCESSCOLOR=""
+  fi
+
   echo -n "$to_exec ($hash). "
+  ##########################################
 
-
+  #################################
+  #Check for concurrent script
   if [ -r "$pidfile" ]; then
     pid=`"$CAT" "$pidfile" | $TR -d ' '`
     #echo $pid
@@ -216,32 +218,35 @@ function run_line {
       rm "$pidfile"
     fi
   fi
+  #################################
 
+  #################################3
+  #Check idle requirements
   XidleMin=0
   XidleMSec=`$XPRINTIDLE`
   XidleSec="$((XidleMSec/1000))"
   XidleMin=$(($XidleSec/60))
-  echo "Idle (msec / sec / min): $XidleMSec / $XidleSec / $XidleMin "
+  echo -n "Idle (msec / sec / min): $XidleMSec / $XidleSec / $XidleMin. "
 
   #convert strings "delta" and "idle" into integers repr. minutes
   string_to_minutes $delta delta_mins || return 1
   string_to_minutes $idle idle_mins || return 1
   echo -n "Required delta/idle: ${delta_mins}m/${idle_mins}m. "
 
-  SPOOLFILE="$SPOOLDIR"/"$hash"
-  ERRLOG="$LOGDIR"/"$hash.err"
-  OUTLOG="$LOGDIR"/"$hash.log"
-
-  #Check idle time
   test $XidleMin -lt $idle_mins && echo "Insufficient idle time (${XidleMin}m)" && return 0
+  #################################3
 
+  #################################
   #Check delta time
   if [ -e "$SPOOLFILE" ]; then
     s=`find "$SPOOLFILE" -cmin "-$delta_mins" -print | ${TR} -d ' '`
     test "$s" != "" && echo "Insufficient delta time (${delta_mins}m)" && return 0
   fi
+  #################################
 
+  #################################
   # Create outputs and execute command
+  d=`${DATE} "+%Y-%m-%d %H:%M:%S"`
   echo -n "Executing..."
   echo -e "\n\n-----------------------------------------------------------------------------" | tee -a "$OUTLOG" "$ERRLOG" > /dev/null
   echo "$d" | tee -a $OUTLOG "$ERRLOG" > /dev/null
@@ -249,6 +254,8 @@ function run_line {
   echo "see '$OUTLOG' for stdout output" >> "$OUTLOG"
   echo -e "Stdout output of '$to_exec':" >> "$OUTLOG"
   echo -e "Stderr output of '$to_exec':" >> "$ERRLOG"
+  #################################
+
 
   ###########################################
   # Executing the command
@@ -257,10 +264,7 @@ function run_line {
   pid="$!"
   echo $pid > "$pidfile"
   wait $!
-  ##########################################
   EXITSTAT="$?"
-
-
   echo -e "-----------------------------------------------------------------------------\nExit status: $EXITSTAT" | tee -a "$OUTLOG" "$ERRLOG" > /dev/null
 
   # Check return status
@@ -271,6 +275,7 @@ function run_line {
     echo -e "${ERRCOLOR}Failed.${RESETCOLOR}"
   fi
   echo -e "-----------------------------------------------------------------------------\n\n" | tee -a "$OUTLOG" "$ERRLOG" > /dev/null
+  ##########################################
 }
 
 function process_configuration_file {
