@@ -22,7 +22,7 @@ SORT="sort"
 TR="tr"
 UNIQ="uniq"
 WC="wc"
-XPRINTIDLE="xprintidle"
+XPRINTIDLE="$HOME/xprintidle"
 exec_list="$CAT $DATE $GETOPT $GREP $MD_SUM $MV $PS $RM $SED $SORT $TR $UNIQ $WC $XPRINTIDLE"
 ##################################################
 
@@ -219,12 +219,9 @@ function run_line {
 
   XidleMin=0
   XidleMSec=`$XPRINTIDLE`
-  XidleSec=$((XidleMSec/1000))
-  test -z "$XidleSec" || XidleMin=$(($XidleSec/60))
-  #test "$delta" = "-h" -o "$idle" = "-h" -o "$to_exec" = "-h" && return 1
-
-  #f=`${DATE} "+%H%M%S"`
-  #echo "$f: $XidleSec sec = $XidleMin min"
+  XidleSec="$((XidleMSec/1000))"
+  XidleMin=$(($XidleSec/60))
+  echo "Idle (msec / sec / min): $XidleMSec / $XidleSec / $XidleMin "
 
   #convert strings "delta" and "idle" into integers repr. minutes
   string_to_minutes $delta delta_mins || return 1
@@ -544,5 +541,6 @@ if [ "$PRINT_STATS" = "True" ]; then
 fi
 
 if [ "$NO_EXECUTE" = "False" ] ;then
+  echo "Running smartstart scripts at `date`"
   process_configuration_file
 fi
