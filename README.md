@@ -23,20 +23,22 @@ Similarly, running it at system startup may slow down the system when it is like
 
 1. Copy `smartstart.sh` into a directory in `$PATH`, and create a smarstart configuration file `~/.config/smartstart.config` (see Section [Configuration file](#Configuration-file) below, and the provided sample file [smartstart.config.sample]().
 Then add the following line to crontab (using `crontab -e`):
-```
-@hourly smartstart.sh
-```
+    ```
+    0,10,20,30,40,50 * * * * DISPLAY=:0 smartstart.sh
+    ```
+Setting the `DISPLAY` variable ensures that a cronjob can properly determine the system's idle time.
+(Note that in some environments you may have to use a different DISPLAY variable setting.)
 
 2. To apply regular log rotation, add the provicefile [logrotate.conf]() to directory ~/.smartstart, and the following line into crontab:
-```
-@daily /usr/sbin/logrotate -s ~/.smartstart/logrotate.state ~/.smartstart/logrotate.conf
-```
+    ```
+    @daily /usr/sbin/logrotate -s ~/.smartstart/logrotate.state ~/.smartstart/logrotate.conf
+    ```
 
 3. For automatic reporting on each shell start, add the following lines to `~/.bashrc`:
-```bash
-smartstart.sh -r 2 2> /dev/null
-smartstart.sh -s 2> /dev/null
-```
+    ```bash
+    smartstart.sh -r 2 2> /dev/null
+    smartstart.sh -s 2> /dev/null
+    ```
 
 
 ## Usage
