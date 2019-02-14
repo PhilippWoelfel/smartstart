@@ -22,7 +22,7 @@ SORT="sort"
 TR="tr"
 UNIQ="uniq"
 WC="wc"
-XPRINTIDLE="xprintidle"
+XPRINTIDLE="/usr/bin/xprintidle"
 exec_list="$CAT $DATE $GETOPT $GREP $MD_SUM $MV $PS $RM $SED $SORT $TR $UNIQ $WC $XPRINTIDLE"
 ##################################################
 
@@ -184,9 +184,11 @@ function run_line {
   shift
   idle="$1"
   shift
+  commandid=$1
+  shift
   to_exec="$*"
-  command=`basename $1`
-  pidfile=$SPOOLDIR/.$command.pid
+#  command=`basename $1`
+  pidfile=$SPOOLDIR/.$commandid.pid
 
   hash=`get_hash "$to_exec"`
   SPOOLFILE="$SPOOLDIR"/"$hash"
@@ -211,7 +213,7 @@ function run_line {
     set -e
     #echo $ptime
     if [ "$ptime" != "" ]; then
-      echo -e "${WARNCOLOR}Skipping: ${RESETCOLOR}Concurrent process '$command' with PID $pid found. (Elapsed time : $ptime.)"
+      echo -e "${WARNCOLOR}Skipping: ${RESETCOLOR}Concurrent process with ID '$commandid' with PID $pid found. (Elapsed time : $ptime.)"
       return
     else
       echo -n "Removing stale PID file. "
@@ -225,7 +227,7 @@ function run_line {
   XidleMin=0
   XidleMSec=`$XPRINTIDLE`
   XidleSec="$((XidleMSec/1000))"
-  XidleMin=$(($XidleSec/60))
+  XidleMin="$(($XidleSec/60))"
   echo -n "Idle (msec / sec / min): $XidleMSec / $XidleSec / $XidleMin. "
 
   #convert strings "delta" and "idle" into integers repr. minutes
