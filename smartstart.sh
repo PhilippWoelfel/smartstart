@@ -95,7 +95,7 @@ function report_line {
   # Status: 0 if success, 1 if warning, 2 if error.
   #
   __stat=$1
-  shift 3
+  shift 4
 
   cmdname="$*"
   hash=`get_hash "$cmdname"`
@@ -103,7 +103,7 @@ function report_line {
 
   #If $SPOOLFILE exists, set its modification time
   modtime=0 # Use beginning of epoch in case SPOOLFILE does not exist
-  test -r $SPOOLFILE && modtime=`stat -c"%Y" $SPOOLFILE`
+  test -r "$SPOOLFILE" && modtime=`stat -c"%Y" $SPOOLFILE`
   NOW=`${DATE} +%s`
   seconds=$((NOW-modtime))
   minutes=$((seconds/60))
