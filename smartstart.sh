@@ -496,7 +496,7 @@ while (($#)); do
     --run)
       shift
       set -- "${@:1:$(($#-1))}" # Remove last argument, which is "--"
-      run_line 0m 0m $*
+      run_line 0m 0m cli_run $*
       $SCRIPTNAME --generate
       exit
       ;;
