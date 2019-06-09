@@ -1,10 +1,4 @@
-#########################################
-#!/bin/bash
-# Error handling
-# See https://www.davidpashley.com/articles/writing-robust-shell-scripts/#id2382181
-set -e #stop on first error
-set -u #stop if using uninitialized variable
-#########################################
+#!/usr/bin/env bash
 
 ##################################################
 # Required executables
@@ -22,10 +16,17 @@ SORT="sort"
 TR="tr"
 UNIQ="uniq"
 WC="wc"
-XPRINTIDLE="/usr/bin/xprintidle"
+XPRINTIDLE=`which xprintidle 2> /dev/null`
+test -x "$XPRINTIDLE" || XPRINTIDLE=`which xprintidle-ng`
 exec_list="$CAT $DATE $GETOPT $GREP $MD_SUM $MV $PS $RM $SED $SORT $TR $UNIQ $WC $XPRINTIDLE"
 ##################################################
 
+#########################################
+# Error handling
+# See https://www.davidpashley.com/articles/writing-robust-shell-scripts/#id2382181
+set -e #stop on first error
+set -u #stop if using uninitialized variable
+#########################################
 
 ##################################################
 # Defaults that can easily be changed in script
